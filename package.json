@@ -4,14 +4,21 @@
     "version": "0.1.0-dev.1",
     "license": "GPL-3.0",
     "description": "Rewrite relative markdown links to site page paths, as a satteri mdast plugin.",
-    "keywords": [],
+    "keywords": [
+        "satteri",
+        "mdast",
+        "markdown",
+        "mdx",
+        "astro",
+        "relative-links",
+        "plugin"
+    ],
     "author": {
         "name": "Erin O'Connell",
         "email": "erin@system76.com",
         "url": "https://github.com/system76"
     },
     "main": "./dist/index.js",
-    "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
@@ -21,14 +28,24 @@
         }
     },
     "files": [
-        "dist"
+        "dist",
+        "src"
     ],
+    "engines": {
+        "node": ">=22"
+    },
+    "devEngines": {
+        "runtime": {
+            "name": "node",
+            "version": ">=24",
+            "onFail": "warn"
+        }
+    },
     "scripts": {
         "build": "tsc",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
     },
-    "contributors": [],
     "peerDependencies": {
         "satteri": "^0.9.0"
     },

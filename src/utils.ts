@@ -8,8 +8,7 @@ import { z } from "zod";
 import type { CollectionOptions, SlugifyFn } from "./options.js";
 
 const validMarkdownExtensions = [".md", ".mdx"];
-const isWindows = typeof process !== "undefined" && process.platform === "win32";
-const windowsSlashRE = /\\/g;
+const isWindows = process.platform === "win32";
 
 // Inlined from `is-absolute-url`: an RFC 3986 scheme (`https:`, `mailto:`, …),
 // with the Windows drive-path carve-out so `c:\...` isn't read as a `c:` scheme.
@@ -18,47 +17,26 @@ const WINDOWS_PATH_REGEX = /^[a-zA-Z]:\\/;
 const isAbsoluteUrl = (url: string): boolean =>
     !WINDOWS_PATH_REGEX.test(url) && ABSOLUTE_URL_REGEX.test(url);
 
-export const FILE_PATH_SEPARATOR = path.sep;
-export const URL_PATH_SEPARATOR = "/";
-export const PATH_SEGMENT_EMPTY = "";
-
-/** Replace all backslashes with `sep`. */
-export function slash(npath: string, sep: string): string {
-    return npath.replace(windowsSlashRE, sep);
-}
-
 /** POSIX-normalize a path; on Windows first converts `\` → `/`. */
 export function normalizePath(npath: string): string {
-    return path.posix.normalize(isWindows ? slash(npath, path.posix.sep) : npath);
+    return path.posix.normalize(isWindows ? npath.replaceAll("\\", "/") : npath);
 }
 
 /** Replace the file extension (via `path.extname`) with `ext`. */
 export const replaceExt = (npath: string, ext: string): string => {
-    if (typeof npath !== "string" || npath.length === 0) {
-        return npath;
-    }
-    return npath.replace(new RegExp(path.extname(npath) + "$"), ext);
+    const oldExt = path.extname(npath);
+    return oldExt ? npath.slice(0, -oldExt.length) + ext : npath + ext;
 };
 
 /**
  * A link is a rewritable relative markdown link when it is non-empty, not an
  * absolute URL, not an absolute filesystem path, and has a `.md`/`.mdx` extension.
  */
-export const isValidRelativeLink = (link: string | null | undefined): boolean => {
-    if (!link) {
-        return false;
-    }
-    if (isAbsoluteUrl(link)) {
-        return false;
-    }
-    if (path.isAbsolute(link)) {
-        return false;
-    }
-    if (!validMarkdownExtensions.includes(path.extname(link))) {
-        return false;
-    }
-    return true;
-};
+export const isValidRelativeLink = (link: string | null | undefined): boolean =>
+    !!link &&
+    !isAbsoluteUrl(link) &&
+    !path.isAbsolute(link) &&
+    validMarkdownExtensions.includes(path.extname(link));
 
 /** `statSync(...).isFile()`; missing file (`ENOENT`) → `false`; other errors rethrown. */
 export const isValidFile = (filePath: string): boolean => {
@@ -82,22 +60,8 @@ export const isValidFile = (filePath: string): boolean => {
  * first), or `null` if neither is present.
  */
 export const splitPathFromQueryAndFragment = (url: string): [string, string | null] => {
-    const indexQuery = url.indexOf("?");
-    const indexHash = url.indexOf("#");
-    if (indexQuery === -1 && indexHash === -1) {
-        return [decodeURI(url), null];
-    }
-    let firstCharacterIndex: number;
-    if (indexQuery !== -1 && indexHash === -1) {
-        firstCharacterIndex = indexQuery;
-    } else if (indexQuery === -1 && indexHash !== -1) {
-        firstCharacterIndex = indexHash;
-    } else {
-        firstCharacterIndex = indexQuery < indexHash ? indexQuery : indexHash;
-    }
-    const splitUrl = url.substring(0, firstCharacterIndex);
-    const splitQueryStringAndHash = url.substring(firstCharacterIndex);
-    return [decodeURI(splitUrl), splitQueryStringAndHash];
+    const i = url.search(/[?#]/);
+    return i === -1 ? [decodeURI(url), null] : [decodeURI(url.slice(0, i)), url.slice(i)];
 };
 
 /** Prepend the site `base` (if any) to the produced path, normalizing the result. */
@@ -105,19 +69,13 @@ export const normalizeOutputPath = (
     initialPath: string,
     collectionOptions: Pick<CollectionOptions, "base">,
 ): string => {
-    const buildPath = () => {
-        if (!collectionOptions.base) {
-            return initialPath;
-        }
-        if (collectionOptions.base.startsWith(URL_PATH_SEPARATOR)) {
-            return path.join(collectionOptions.base, initialPath);
-        }
-        return URL_PATH_SEPARATOR + path.join(collectionOptions.base, initialPath);
-    };
     if (!initialPath) {
         return initialPath;
     }
-    return normalizePath(buildPath());
+    if (!collectionOptions.base) {
+        return normalizePath(initialPath);
+    }
+    return path.posix.normalize(path.posix.join("/", collectionOptions.base, initialPath));
 };
 
 /** Slugify each segment, join with `/`, then strip a trailing `/index`. Defaults
@@ -125,7 +83,7 @@ export const normalizeOutputPath = (
 export const generateSlug = (pathSegments: string[], slugify: SlugifyFn = githubSlug): string => {
     return pathSegments
         .map((segment) => slugify(segment))
-        .join(URL_PATH_SEPARATOR)
+        .join("/")
         .replace(/\/index$/, "");
 };
 
@@ -145,16 +103,16 @@ export const applyTrailingSlash = (
     resolvedUrl: string,
     trailingSlash: "ignore" | "always" | "never" = "ignore",
 ): string => {
-    const hasTrailingSlash = resolvedUrl.endsWith(URL_PATH_SEPARATOR);
+    const hasTrailingSlash = resolvedUrl.endsWith("/");
     if (trailingSlash === "always") {
-        return hasTrailingSlash ? resolvedUrl : resolvedUrl + URL_PATH_SEPARATOR;
+        return hasTrailingSlash ? resolvedUrl : resolvedUrl + "/";
     }
     if (trailingSlash === "never") {
         return hasTrailingSlash ? resolvedUrl.slice(0, -1) : resolvedUrl;
     }
-    const hadTrailingSlash = origUrl.endsWith(URL_PATH_SEPARATOR);
+    const hadTrailingSlash = origUrl.endsWith("/");
     if (hadTrailingSlash && !hasTrailingSlash) {
-        return resolvedUrl + URL_PATH_SEPARATOR;
+        return resolvedUrl + "/";
     }
     if (!hadTrailingSlash && hasTrailingSlash) {
         return resolvedUrl.slice(0, -1);
@@ -172,11 +130,11 @@ export function resolveCollectionBase(
     collectionOptions: Pick<CollectionOptions, "collectionBase" | "collectionName">,
 ): string {
     return collectionOptions.collectionBase === false
-        ? PATH_SEGMENT_EMPTY
-        : URL_PATH_SEPARATOR + collectionOptions.collectionName;
+        ? ""
+        : "/" + collectionOptions.collectionName;
 }
 
-const matterCache: Record<string, Record<string, unknown>> = {};
+const matterCache = new Map<string, Record<string, unknown>>();
 const matterCacheEnabled = process.env.SMRL_MATTER_CACHE_DISABLE !== "true";
 
 /**
@@ -186,8 +144,11 @@ const matterCacheEnabled = process.env.SMRL_MATTER_CACHE_DISABLE !== "true";
  * Results are cached per path unless `SMRL_MATTER_CACHE_DISABLE=true`.
  */
 export function getMatter(npath: string): Record<string, unknown> {
-    if (matterCacheEnabled && npath in matterCache) {
-        return matterCache[npath]!;
+    if (matterCacheEnabled) {
+        const cached = matterCache.get(npath);
+        if (cached) {
+            return cached;
+        }
     }
     const source = readFileSync(npath, "utf8");
     const root = markdownToMdast(source, { features: { frontmatter: true } });
@@ -202,7 +163,7 @@ export function getMatter(npath: string): Record<string, unknown> {
         }
     }
     if (matterCacheEnabled) {
-        matterCache[npath] = data;
+        matterCache.set(npath, data);
     }
     return data;
 }

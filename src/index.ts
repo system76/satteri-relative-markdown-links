@@ -12,19 +12,16 @@ import {
 } from "./options.js";
 import {
     applyTrailingSlash,
-    FILE_PATH_SEPARATOR,
     generateSlug,
     getMatter,
     isValidFile,
     isValidRelativeLink,
     normalizeOutputPath,
-    PATH_SEGMENT_EMPTY,
     replaceExt,
     resolveCollectionBase,
     resolveSlug,
     shouldProcessFile,
     splitPathFromQueryAndFragment,
-    URL_PATH_SEPARATOR,
 } from "./utils.js";
 
 export type { CollectionConfig, Options, SlugifyFn } from "./options.js";
@@ -77,11 +74,7 @@ function makeRewrite(options: ValidatedOptions) {
             return;
         }
 
-        const collectionName = path.dirname(relativeToContentPath).split(FILE_PATH_SEPARATOR)[0];
-        if (!collectionName) {
-            return;
-        }
-
+        const collectionName = path.dirname(relativeToContentPath).split(path.sep)[0];
         const collectionOptions = mergeCollectionOptions(collectionName, options);
         if (
             collectionName === ".." ||
@@ -93,19 +86,20 @@ function makeRewrite(options: ValidatedOptions) {
         const collectionDir = path.join(contentDir, collectionName);
         const relativeToCollectionPath = path.relative(collectionDir, urlFilePath);
         const withoutFileExt = replaceExt(relativeToCollectionPath, "");
-        const pathSegments = withoutFileExt.split(FILE_PATH_SEPARATOR);
+        const pathSegments = withoutFileExt.split(path.sep);
         const generatedSlug = generateSlug(pathSegments, options.slugify);
         const resolvedSlug = resolveSlug(generatedSlug, frontmatterSlug);
         const resolvedCollectionBase = resolveCollectionBase(collectionOptions);
-        const resolvedUrl = [resolvedCollectionBase, resolvedSlug].join(URL_PATH_SEPARATOR);
+        const resolvedUrl = [resolvedCollectionBase, resolvedSlug].join("/");
 
-        let webPathFinal = applyTrailingSlash(
-            (collectionOptions.collectionBase === false && frontmatterSlug === PATH_SEGMENT_EMPTY
-                ? URL_PATH_SEPARATOR
-                : (frontmatterSlug as string | undefined)) || urlPathPart,
-            resolvedUrl,
-            trailingSlashMode,
-        );
+        // `resolveSlug` has already thrown if `frontmatterSlug` was a non-string,
+        // non-undefined value, so this narrows without losing any validation.
+        const customSlug = typeof frontmatterSlug === "string" ? frontmatterSlug : undefined;
+        const origUrl =
+            collectionOptions.collectionBase === false && customSlug === ""
+                ? "/"
+                : customSlug || urlPathPart;
+        let webPathFinal = applyTrailingSlash(origUrl, resolvedUrl, trailingSlashMode);
         if (urlQueryStringAndFragmentPart) {
             webPathFinal += urlQueryStringAndFragmentPart;
         }

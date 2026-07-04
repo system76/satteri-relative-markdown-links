@@ -12,7 +12,7 @@ export type SlugifyFn = (segment: string) => string;
  *   - `"name"` — apply the collection's on-disk directory name as a base segment.
  *   - `false`  — do not apply a base segment (treat the collection as the site root).
  */
-const CollectionBase = z.union([z.literal("name"), z.literal(false)]);
+const CollectionBase = z.literal(["name", false]);
 
 const CollectionConfigSchema = z.object({
     /** Override the top-level {@link OptionsSchema} `collectionBase` for this collection. */
@@ -70,9 +70,7 @@ export const OptionsSchema = z.object({
      *   - `"ignore"` — match the source link / custom slug's trailing slash.
      * @default "ignore"
      */
-    trailingSlash: z
-        .union([z.literal("ignore"), z.literal("always"), z.literal("never")])
-        .default("ignore"),
+    trailingSlash: z.enum(["ignore", "always", "never"]).default("ignore"),
 });
 
 /** Public (input) options shape — every field optional, before defaults are applied. */
@@ -90,13 +88,8 @@ export type CollectionOptions = ValidatedOptions & {
 };
 
 /** Parse and validate options, applying defaults. Throws the zod error on failure. */
-export const validateOptions = (options: Options | undefined): ValidatedOptions => {
-    const result = OptionsSchema.safeParse(options || {});
-    if (!result.success) {
-        throw result.error;
-    }
-    return result.data;
-};
+export const validateOptions = (options: Options | undefined): ValidatedOptions =>
+    OptionsSchema.parse(options ?? {});
 
 /**
  * Resolve the effective `collectionBase` / `collectionName` for a collection,
@@ -106,7 +99,7 @@ export const mergeCollectionOptions = (
     collectionName: string,
     options: ValidatedOptions,
 ): CollectionOptions => {
-    const config = options.collections[collectionName] || {};
+    const config = options.collections[collectionName] ?? {};
     const { base = options.collectionBase, name = collectionName } = config;
     return {
         ...options,
