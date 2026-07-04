@@ -2,7 +2,7 @@ import type { Definition, Link } from "mdast";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { debuglog } from "node:util";
-import type { MdastPluginInput, MdastVisitorContext } from "satteri";
+import type { MdastPluginDefinition, MdastVisitorContext } from "satteri";
 import { defineMdastPlugin } from "satteri";
 import {
     mergeCollectionOptions,
@@ -146,7 +146,7 @@ function makeRewrite(options: ValidatedOptions) {
  * trailing-slash policy. Register it via a compile's `mdastPlugins`, and pass the
  * source document's `fileURL` so the plugin can resolve relative links on disk.
  */
-export function satteriRelativeMarkdownLinks(opts?: Options): MdastPluginInput {
+export function satteriRelativeMarkdownLinks(opts?: Options): MdastPluginDefinition {
     const options = validateOptions(opts);
     const rewrite = makeRewrite(options);
     return defineMdastPlugin({

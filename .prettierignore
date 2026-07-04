@@ -1,2 +1,5 @@
 *.yml
 *.yaml
+*.md
+README
+LICENSE

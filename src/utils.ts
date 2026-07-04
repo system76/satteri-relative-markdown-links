@@ -134,7 +134,12 @@ export const resolveSlug = (generatedSlug: string, frontmatterSlug: unknown): st
     return z.string().default(generatedSlug).parse(frontmatterSlug);
 };
 
-/** Apply the trailing-slash policy to `resolvedUrl` (see the reference §6 truth table). */
+/**
+ * Apply the trailing-slash policy to `resolvedUrl`:
+ *   - `"always"` — ensure exactly one trailing slash.
+ *   - `"never"`  — strip a trailing slash if present.
+ *   - `"ignore"` — make the result match `origUrl`'s trailing-slash presence.
+ */
 export const applyTrailingSlash = (
     origUrl: string,
     resolvedUrl: string,
