@@ -27,7 +27,7 @@ import {
     URL_PATH_SEPARATOR,
 } from "./utils.js";
 
-export type { CollectionConfig, Options } from "./options.js";
+export type { CollectionConfig, Options, SlugifyFn } from "./options.js";
 
 // Namespaced trace logging via Node's built-in debuglog; enable with
 // `NODE_DEBUG=satteri-relative-markdown-links`. The block below is only
@@ -94,7 +94,7 @@ function makeRewrite(options: ValidatedOptions) {
         const relativeToCollectionPath = path.relative(collectionDir, urlFilePath);
         const withoutFileExt = replaceExt(relativeToCollectionPath, "");
         const pathSegments = withoutFileExt.split(FILE_PATH_SEPARATOR);
-        const generatedSlug = generateSlug(pathSegments);
+        const generatedSlug = generateSlug(pathSegments, options.slugify);
         const resolvedSlug = resolveSlug(generatedSlug, frontmatterSlug);
         const resolvedCollectionBase = resolveCollectionBase(collectionOptions);
         const resolvedUrl = [resolvedCollectionBase, resolvedSlug].join(URL_PATH_SEPARATOR);

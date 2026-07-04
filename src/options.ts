@@ -1,6 +1,13 @@
 import { z } from "zod";
 
 /**
+ * Slugifies a single path segment. Applied per segment during URL derivation;
+ * the `/` join and trailing-`/index` stripping are handled by the plugin.
+ * Defaults to github-slugger, matching how Astro slugs content-collection entries.
+ */
+export type SlugifyFn = (segment: string) => string;
+
+/**
  * Whether/how to prefix the collection name onto the produced URL.
  *   - `"name"` — apply the collection's on-disk directory name as a base segment.
  *   - `false`  — do not apply a base segment (treat the collection as the site root).
@@ -49,6 +56,13 @@ export const OptionsSchema = z.object({
     collections: z.record(z.string(), CollectionConfigSchema).default({}),
     /** Site base path, prepended to the final URL (e.g. `/docs`). */
     base: z.string().optional(),
+    /**
+     * Per-segment slug function. Applied to each path segment when deriving the
+     * URL; the `/` join and trailing-`/index` stripping remain built-in. Defaults
+     * to github-slugger, which matches Astro's content-collection slugging — supply
+     * your own only when the consuming router slugs differently.
+     */
+    slugify: z.custom<SlugifyFn>((val) => typeof val === "function").optional(),
     /**
      * Trailing-slash policy for the produced URL.
      *   - `"always"` — always end with a trailing slash.

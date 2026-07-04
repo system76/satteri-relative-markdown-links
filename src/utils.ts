@@ -5,7 +5,7 @@ import { markdownToMdast } from "satteri";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import type { CollectionOptions } from "./options.js";
+import type { CollectionOptions, SlugifyFn } from "./options.js";
 
 const validMarkdownExtensions = [".md", ".mdx"];
 const isWindows = typeof process !== "undefined" && process.platform === "win32";
@@ -120,10 +120,11 @@ export const normalizeOutputPath = (
     return normalizePath(buildPath());
 };
 
-/** github-slugger each segment, join with `/`, then strip a trailing `/index`. */
-export const generateSlug = (pathSegments: string[]): string => {
+/** Slugify each segment, join with `/`, then strip a trailing `/index`. Defaults
+ *  to github-slugger (Astro-compatible) unless a custom `slugify` is supplied. */
+export const generateSlug = (pathSegments: string[], slugify: SlugifyFn = githubSlug): string => {
     return pathSegments
-        .map((segment) => githubSlug(segment))
+        .map((segment) => slugify(segment))
         .join(URL_PATH_SEPARATOR)
         .replace(/\/index$/, "");
 };
