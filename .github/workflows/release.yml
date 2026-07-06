@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Reuse the base build + test workflow so a tag can never publish
+  # something that doesn't pass CI.
+  validate:
+    name: Release
+    uses: ./.github/workflows/build-test.yml
+
+  publish:
+    name: Publish to npm
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for OIDC trusted publishing + provenance.
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Verify tag matches package.json version
+        run: |
+          pkg_version="$(node -p "require('./package.json').version")"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$pkg_version" != "$tag_version" ]; then
+            echo "::error::Tag v$tag_version does not match package.json version $pkg_version"
+            exit 1
+          fi
+          echo "Publishing version $pkg_version"
+
+      - name: Derive npm dist-tag
+        id: dist_tag
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          # Prerelease versions (e.g. 0.1.0-dev.1) publish under their prerelease
+          # identifier; stable versions publish under `latest`.
+          if [[ "$version" == *-* ]]; then
+            prerelease="${version#*-}"        # dev.1
+            tag="${prerelease%%.*}"           # dev
+          else
+            tag="latest"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Using dist-tag: $tag"
+
+      - name: Publish
+        run: pnpm publish --provenance --no-git-checks --tag ${{ steps.dist_tag.outputs.tag }}
