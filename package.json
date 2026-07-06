@@ -2,8 +2,16 @@
     "name": "@system76/satteri-relative-markdown-links",
     "type": "module",
     "version": "0.1.0-dev.1",
-    "license": "GPL-3.0",
+    "license": "GPL-3.0-only",
     "description": "Rewrite relative markdown links to site page paths, as a satteri mdast plugin.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/system76/satteri-relative-markdown-links.git"
+    },
+    "homepage": "https://github.com/system76/satteri-relative-markdown-links",
+    "bugs": {
+        "url": "https://github.com/system76/satteri-relative-markdown-links/issues"
+    },
     "keywords": [
         "satteri",
         "mdast",
@@ -31,6 +39,9 @@
         "dist",
         "src"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "engines": {
         "node": ">=22"
     },
@@ -42,6 +53,7 @@
         }
     },
     "scripts": {
+        "prepack": "tsc",
         "build": "tsc",
         "pretest": "tsc",
         "test": "node --test",
