@@ -61,7 +61,6 @@
     "devDependencies": {
         "@types/mdast": "^4.0.4",
         "@types/node": "^24.13.2",
-        "astro": "^7.0.6",
         "prettier": "^3.9.4",
         "prettier-plugin-organize-imports": "^4.3.0",
         "satteri": "^0.9.4",
