@@ -1,7 +1,7 @@
 {
     "name": "@system76/satteri-relative-markdown-links",
     "type": "module",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "license": "GPL-3.0-only",
     "description": "Rewrite relative markdown links to site page paths, as a satteri mdast plugin.",
     "repository": {

@@ -38,7 +38,38 @@ export const isValidRelativeLink = (link: string | null | undefined): boolean =>
     !path.isAbsolute(link) &&
     validMarkdownExtensions.includes(path.extname(link));
 
-/** `statSync(...).isFile()`; missing file (`ENOENT`) → `false`; other errors rethrown. */
+/**
+ * Windows-only: `statSync` reports `ENOENT` both for a genuinely missing
+ * path and for a path that walks through a file as if it were a directory
+ * (POSIX distinguishes the latter as `ENOTDIR` — see nodejs/node#8797).
+ * Walk up `filePath`'s ancestors to find the first one that exists; if it's
+ * a file, a lower segment wrongly treated a file as a directory.
+ */
+function ancestorIsFile(filePath: string): boolean {
+    let dir = path.dirname(filePath);
+    while (true) {
+        try {
+            return statSync(dir).isFile();
+        } catch (err) {
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+                throw err;
+            }
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) {
+            return false; // reached the root; nothing along the path exists
+        }
+        dir = parent;
+    }
+}
+
+/**
+ * `statSync(...).isFile()`; missing file (`ENOENT`) → `false`; other errors
+ * rethrown — including a path that walks through a file as if it were a
+ * directory (`ENOTDIR` on POSIX). On Windows the same case reports `ENOENT`
+ * (see `ancestorIsFile`), so it's detected and rethrown with `.code`
+ * normalized to `"ENOTDIR"` to match POSIX behavior.
+ */
 export const isValidFile = (filePath: string): boolean => {
     if (!filePath) {
         return false;
@@ -48,6 +79,10 @@ export const isValidFile = (filePath: string): boolean => {
     } catch (err) {
         const error = err as NodeJS.ErrnoException;
         if (error && error.code === "ENOENT") {
+            if (isWindows && ancestorIsFile(filePath)) {
+                error.code = "ENOTDIR";
+                throw error;
+            }
             return false;
         }
         throw error;

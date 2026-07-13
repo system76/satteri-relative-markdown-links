@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -96,6 +97,22 @@ describe("isValidFile", () => {
             code: "ENOTDIR",
         });
     });
+
+    test(
+        "on Windows, returns false (not throws) for a path missing several levels deep",
+        // Windows reports ENOENT for both "genuinely missing" and "file treated as
+        // a directory" (see ancestorIsFile's doc comment in src/utils.ts), so this
+        // exercises the walk-up-multiple-ancestors branch of that disambiguation —
+        // a single missing level (the ENOENT test above) only exercises one loop
+        // iteration and wouldn't catch a bug in the "keep walking up" logic.
+        { skip: process.platform !== "win32" && "ancestorIsFile's walk-up loop is Windows-only" },
+        () => {
+            assert.equal(
+                isValidFile(fixture("src/content/blog/does-not-exist/also-missing/deep.md")),
+                false,
+            );
+        },
+    );
 });
 
 describe("splitPathFromQueryAndFragment", () => {
@@ -192,11 +209,11 @@ describe("shouldProcessFile", () => {
     });
 
     test("skips a file under a `_`-prefixed directory", () => {
-        assert.equal(shouldProcessFile("blog/_drafts/hidden.md"), false);
+        assert.equal(shouldProcessFile(path.join("blog", "_drafts", "hidden.md")), false);
     });
 
     test("skips a `_`-prefixed file", () => {
-        assert.equal(shouldProcessFile("blog/_hidden.md"), false);
+        assert.equal(shouldProcessFile(path.join("blog", "_hidden.md")), false);
     });
 });
 
