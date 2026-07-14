@@ -170,13 +170,13 @@ export function resolveCollectionBase(
 }
 
 const matterCache = new Map<string, Record<string, unknown>>();
-const matterCacheEnabled = process.env.SMRL_MATTER_CACHE_DISABLE !== "true";
+const matterCacheEnabled = process.env.SRML_MATTER_CACHE_DISABLE !== "true";
 
 /**
  * Parse the frontmatter of a target markdown file. The block is extracted with
  * satteri's own parser (`markdownToMdast`, reading the leading `yaml`/`toml`
  * node) and its raw contents are parsed with the `yaml` or `smol-toml` library.
- * Results are cached per path unless `SMRL_MATTER_CACHE_DISABLE=true`.
+ * Results are cached per path unless `SRML_MATTER_CACHE_DISABLE=true`.
  */
 export function getMatter(npath: string): Record<string, unknown> {
     if (matterCacheEnabled) {

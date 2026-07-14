@@ -3,6 +3,11 @@
 A [satteri](https://satteri.bruits.org) plugin that turns relative links between Markdown
 files into the URLs those files actually resolve to.
 
+Designed with [Astro](https://astro.build) in mind. The URLs it produces match what Astro
+generates for the same file, so it's a drop-in for an Astro content collection. It only
+depends on satteri though, so it works with anything that uses satteri as its Markdown processor,
+Astro or not.
+
 If you write a link like `[the other post](./other.md)` in your Markdown, the raw href points
 at a file on disk, not at a page. This plugin rewrites it to the real page path at build time:
 
@@ -16,9 +21,7 @@ Query strings and fragments are preserved. Frontmatter `slug`, a custom collecti
 site base path, and a trailing-slash policy are all taken into account.
 
 It's a port of [`astro-rehype-relative-markdown-links`](https://github.com/vernak2539/astro-rehype-relative-markdown-links)
-(a rehype plugin for Astro) to satteri's mdast plugin API. The URL it produces matches what
-Astro would generate for the same file, so it's a drop-in for that workflow, but it also works
-on its own outside Astro.
+(a rehype plugin for Astro) to satteri's mdast plugin API.
 
 ## Install
 
@@ -26,12 +29,58 @@ on its own outside Astro.
 pnpm add @system76/satteri-relative-markdown-links satteri
 ```
 
-`satteri` is a peer dependency. This package is ESM only.
+`satteri` is a peer dependency and should be satisfied by @astrojs/markdown-satteri or installing it seperatly.
 
 ## Usage
 
-Pass the plugin to `markdownToHtml` (or `mdxToJs`), and give it the `fileURL` of the file
-you're compiling:
+### In Astro
+
+Astro runs satteri through the [`@astrojs/markdown-satteri`](https://www.npmjs.com/package/@astrojs/markdown-satteri)
+integration, which swaps satteri in as the Markdown processor. Register this plugin in that
+processor's `mdastPlugins`:
+
+```js
+// astro.config.mjs
+import { defineConfig } from "astro/config";
+import { satteri } from "@astrojs/markdown-satteri";
+import { satteriRelativeMarkdownLinks } from "@system76/satteri-relative-markdown-links";
+
+export default defineConfig({
+    markdown: {
+        processor: satteri({
+            mdastPlugins: [satteriRelativeMarkdownLinks()],
+        }),
+    },
+});
+```
+
+The defaults match Astro's own conventions, so a link `./intro.md` inside
+`src/content/guides/setup.md` resolves to `/guides/intro` with no configuration. See
+[Options](#options) below for the full list; if you set `base` or `trailingSlash` in
+`astro.config.mjs`, pass the same values here so the URLs match:
+
+```js
+satteriRelativeMarkdownLinks({ base: "/docs", trailingSlash: "always" });
+// ./intro.md in src/content/guides/setup.md -> /docs/guides/intro/
+```
+
+When a collection's URL doesn't match its directory name, or you route one at the site root,
+use `collections`:
+
+```js
+satteriRelativeMarkdownLinks({
+    collections: {
+        docs: { name: "documentation" }, // src/content/docs/ref.md    -> /documentation/ref
+        pages: { base: false },          // src/content/pages/about.md  -> /about
+    },
+});
+```
+
+### Standalone
+
+Nothing here depends on Astro — the `src/content/<collection>` layout is just the default.
+Pass the plugin to `markdownToHtml` (or `mdxToJs`), along with the `fileURL` of the file you're
+compiling:
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -48,8 +97,22 @@ const { html } = markdownToHtml(source, {
 });
 ```
 
-The `fileURL` is required. The plugin resolves relative links against the directory of that
-file, so without it there's nothing to resolve and links are left untouched.
+The `fileURL` is required here, outside Astro there's nothing else to hand satteri that file's
+URL, so without it the plugin has nothing to resolve links against and leaves them untouched.
+
+If you don't organize content into collections, point `contentDir` at your Markdown root and
+drop the collection prefix:
+
+```ts
+satteriRelativeMarkdownLinks({
+    contentDir: "./docs",
+    collectionBase: false,
+});
+// ./other.md from docs/api.md -> /other
+```
+
+The URLs still follow github-slugger by default. If your router slugs paths differently, pass
+`slugify` to match it — see [Custom slugs](#custom-slugs) below.
 
 ## What gets rewritten
 
@@ -82,9 +145,9 @@ satteriRelativeMarkdownLinks({
 | `collections` | `Record<string, { base?, name? }>` | `{}` | Per-collection overrides, keyed by the directory name on disk. `base` overrides `collectionBase`; `name` overrides the name used in the URL. |
 | `base` | `string` | — | Site base path prepended to every generated URL (e.g. `/docs`). |
 | `trailingSlash` | `"ignore" \| "always" \| "never"` | `"ignore"` | `"always"`/`"never"` force the trailing slash. `"ignore"` keeps whatever the link (or custom slug) already had. |
-| `slugify` | `(segment: string) => string` | github-slugger | Slugs a single path segment. See below. |
+| `slugify` | `(segment: string) => string` | github-slugger | Slugs a single path segment. See [Custom slugs](#custom-slugs). |
 
-### Custom slugs
+## Custom slugs
 
 By default each path segment is run through [`github-slugger`](https://github.com/Flet/github-slugger),
 which is the same thing Astro uses for content collections. If your site's router slugs URLs
@@ -99,10 +162,8 @@ satteriRelativeMarkdownLinks({
 It's called per segment. Joining the segments with `/` and collapsing a trailing `/index` are
 handled for you, so you only need to worry about how one segment becomes a slug.
 
-### Frontmatter slug
-
-If a target file sets `slug` in its frontmatter (YAML or TOML), that wins over the generated
-slug:
+A target file can also override its own slug from frontmatter (YAML or TOML), which wins over
+whatever `slugify` would produce:
 
 ```md
 ---
@@ -112,78 +173,10 @@ slug: custom-path
 
 A link to that file resolves to `/<collection>/custom-path`.
 
-## Using it in Astro
-
-Astro runs satteri through the [`@astrojs/markdown-satteri`](https://www.npmjs.com/package/@astrojs/markdown-satteri)
-integration, which swaps satteri in as the Markdown processor. Register this plugin in that
-processor's `mdastPlugins`:
-
-```js
-// astro.config.mjs
-import { defineConfig } from "astro/config";
-import { satteri } from "@astrojs/markdown-satteri";
-import { satteriRelativeMarkdownLinks } from "@system76/satteri-relative-markdown-links";
-
-export default defineConfig({
-    markdown: {
-        processor: satteri({
-            mdastPlugins: [satteriRelativeMarkdownLinks()],
-        }),
-    },
-});
-```
-
-You don't pass `fileURL` here. Astro renders each content file through the processor and hands
-satteri that file's URL, which the plugin reads to resolve links.
-
-The defaults line up with Astro's own conventions: content at `src/content/<collection>`, the
-collection directory as the first URL segment, and github-slugger for slugs (the same slugger
-Astro uses for content entries). So a link `./intro.md` inside `src/content/guides/setup.md`
-resolves to `/guides/intro`. If you set `base` or `trailingSlash` in `astro.config.mjs`, pass
-the same values to the plugin so the URLs match:
-
-```js
-satteriRelativeMarkdownLinks({ base: "/docs", trailingSlash: "always" });
-// ./intro.md in src/content/guides/setup.md -> /docs/guides/intro/
-```
-
-When a collection's URL doesn't match its directory name, or you route one at the site root,
-use `collections`:
-
-```js
-satteriRelativeMarkdownLinks({
-    collections: {
-        docs: { name: "documentation" }, // src/content/docs/ref.md    -> /documentation/ref
-        pages: { base: false },          // src/content/pages/about.md  -> /about
-    },
-});
-```
-
-## Using it standalone
-
-Nothing here depends on Astro. The `src/content/<collection>` layout is just the default. When
-you call satteri yourself, register the plugin in `mdastPlugins` and pass the `fileURL` of the
-file you're compiling (see [Usage](#usage) above) — that's the piece the Astro integration
-otherwise handles for you.
-
-If you don't organize content into collections, point `contentDir` at your Markdown root and
-drop the collection prefix:
-
-```ts
-satteriRelativeMarkdownLinks({
-    contentDir: "./docs",
-    collectionBase: false,
-});
-// ./other.md from docs/api.md -> /other
-```
-
-The URLs still follow github-slugger by default. If your router slugs paths differently, pass
-`slugify` to match it.
-
 ## Environment variables
 
 - `NODE_DEBUG=satteri-relative-markdown-links` prints a trace for each link it processes.
-- `SMRL_MATTER_CACHE_DISABLE=true` disables the in-memory cache of target-file frontmatter
+- `SRML_MATTER_CACHE_DISABLE=true` disables the in-memory cache of target-file frontmatter
   (it re-reads every file instead). The cache is fine for a normal build; disable it if you're
   editing files in a long-running process and need fresh reads.
 
