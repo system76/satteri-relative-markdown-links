@@ -239,10 +239,14 @@ describe("getMatter", () => {
     });
 
     test("parses TOML frontmatter", () => {
-        assert.deepEqual(getMatter(fixture("src/content/blog/toml-slug.md")), {
-            title: "Toml Slug",
-            slug: "toml-path",
-        });
+        // smol-toml returns a null-prototype object, spread it to compare contents only.
+        assert.deepEqual(
+            { ...getMatter(fixture("src/content/blog/toml-slug.md")) },
+            {
+                title: "Toml Slug",
+                slug: "toml-path",
+            },
+        );
     });
 
     test("returns an empty object when there is no frontmatter", () => {
