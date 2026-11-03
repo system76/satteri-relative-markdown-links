@@ -31,6 +31,8 @@ pnpm add @system76/satteri-relative-markdown-links satteri
 
 `satteri` is a peer dependency and should be satisfied by @astrojs/markdown-satteri or installing it seperatly.
 
+Supported satteri versions are `^0.9.0 || ^0.10.0 || ^0.11.5`. Versions 0.11.1, 0.11.3 and 0.11.4 are left out because they were published without their native bindings and can't be loaded.
+
 ## Usage
 
 ### In Astro

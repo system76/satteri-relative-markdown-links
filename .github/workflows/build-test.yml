@@ -72,3 +72,43 @@ jobs:
 
       - name: Test
         run: node --test
+
+  # Runs the built plugin against both ends of each satteri minor in the peer
+  # range. Bare minors install that minor's newest release. Versions are quoted
+  # because YAML would otherwise read 0.10 as the number 0.1.
+  test-satteri:
+    name: Test (satteri ${{ matrix.satteri }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        satteri: ["0.9.0", "0.9", "0.10.0", "0.10", "0.11.5", "0.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install satteri ${{ matrix.satteri }}
+        run: pnpm add -D satteri@${{ matrix.satteri }}
+
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Test
+        run: node --test
