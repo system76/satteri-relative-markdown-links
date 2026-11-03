@@ -70,14 +70,14 @@
     },
     "dependencies": {
         "github-slugger": "^2.0.0",
-        "smol-toml": "^1.7.0",
-        "yaml": "^2.9.0",
-        "zod": "^4.4.3"
+        "smol-toml": "^1.9.1",
+        "yaml": "^2.9.1",
+        "zod": "^4.6.7"
     },
     "devDependencies": {
         "@types/mdast": "^4.0.4",
         "@types/node": "^24.13.3",
-        "prettier": "^3.9.5",
+        "prettier": "^3.9.10",
         "prettier-plugin-organize-imports": "^4.3.0",
         "satteri": "^0.11.6",
         "typescript": "^6.0.3"
